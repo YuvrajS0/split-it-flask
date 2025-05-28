@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 # Configure app settings
 app.secret_key = os.getenv('SECRET_KEY', 'your_secret_key')
-app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_TYPE'] = 'redis'
 app.config['GITHUB_CLIENT_ID'] = os.getenv('GITHUB_CLIENT_ID', 'your_github_client_id')
 app.config['GITHUB_CLIENT_SECRET'] = os.getenv('GITHUB_CLIENT_SECRET', 'your_github_client_secret')
 
