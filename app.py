@@ -210,4 +210,4 @@ def delete_receipt(receipt_id):
     return redirect(url_for('profile'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
