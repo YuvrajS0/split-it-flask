@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Receipt Breakdown</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-5">
+    <h2>Breakdown for: {{ receipt_name }}</h2>
+    <table class="table table-bordered mt-4">
+        <thead>
+            <tr>
+                <th>Person</th>
+                <th>Amount Owed ($)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for person, amount in breakdown.items() %}
+            <tr>
+                <td>{{ person }}</td>
+                <td>{{ "%.2f"|format(amount) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <form method="POST" action="/save_receipt">
+        <input type="hidden" name="receipt_name" value="{{ receipt_name }}">
+        <input type="hidden" name="tax_tip" value="{{ tax_tip }}">
+        {% for name in people %}
+        <input type="hidden" name="person_names[]" value="{{ name }}">
+        {% endfor %}
+        {% for item in items %}
+        <input type="hidden" name="item_names[]" value="{{ item.name }}">
+        <input type="hidden" name="item_prices[]" value="{{ item.price }}">
+        <input type="hidden" name="assignments[]" value="{{ item.assignment }}">
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">Save to Database</button>
+        <a href="/" class="btn btn-secondary">Add Another Receipt</a>
+    </form>
+</div>
+</body>
+</html>

@@ -2,52 +2,149 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
-    <!-- Bootstrap CSS -->
+    <title>Split-It - Home</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <style>
+        .person-tag {
+            margin-right: 5px;
+        }
+        .assignments-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+    </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">Split-It</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="#">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/profile">Profile</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/logout">Logout</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container mt-5">
-        <div class="row">
-            <div class="col-md-8 offset-md-2">
-                <div class="card shadow">
-                    <div class="card-body text-center">
-                        <h1 class="card-title">Welcome, {{ user['login'] }}!</h1>
-                        <a href="/logout" class="btn btn-danger mt-3">Logout</a>
-                    </div>
-                </div>
-            </div>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">Split-It</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link active" href="#">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="/profile">Profile</a></li>
+                <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
+            </ul>
         </div>
     </div>
+</nav>
 
-    <footer class="bg-dark text-white text-center py-3 mt-5">
-        <p>&copy; 2023 Split-It. All rights reserved.</p>
-    </footer>
+<div class="container mt-4">
+    <h2>Welcome, {{ user['login'] }}!</h2>
+    <hr>
+    <h4>Create a New Receipt</h4>
+    <form method="POST" action="/breakdown">
+        <div class="mb-3">
+            <label class="form-label">Receipt Name</label>
+            <input type="text" class="form-control" name="receipt_name" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Tax + Tip</label>
+            <input type="number" step="0.01" class="form-control" name="tax_tip" required>
+        </div>
 
-    <!-- Bootstrap JS -->
-    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+        <div class="mb-3">
+            <label class="form-label">People</label>
+            <div id="people-list">
+                <input type="text" class="form-control mb-2" name="person_names[]" placeholder="Person 1">
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addPerson()">Add Person</button>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Items</label>
+            <div id="items-list">
+                <div class="border p-3 mb-3 item-block">
+                    <input type="text" class="form-control mb-2" name="item_names[]" placeholder="Item name">
+                    <input type="number" step="0.01" class="form-control mb-2" name="item_prices[]" placeholder="Price">
+                    <div class="form-label">Assign to:</div>
+                    <div class="assignments-container"></div>
+                    <input type="hidden" name="assignments[]" value="">
+                </div>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addItem()">Add Item</button>
+        </div>
+
+        <button type="submit" class="btn btn-success mt-3">View Breakdown</button>
+    </form>
+</div>
+
+<script>
+function addPerson() {
+    const personInput = document.createElement('input');
+    personInput.type = 'text';
+    personInput.className = 'form-control mb-2';
+    personInput.name = 'person_names[]';
+    personInput.placeholder = 'Person';
+    document.getElementById('people-list').appendChild(personInput);
+    updateAllAssignments();
+}
+
+function addItem() {
+    const people = Array.from(document.getElementsByName('person_names[]')).map(el => el.value.trim()).filter(Boolean);
+
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'border p-3 mb-3 item-block';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'form-control mb-2';
+    nameInput.name = 'item_names[]';
+    nameInput.placeholder = 'Item name';
+
+    const priceInput = document.createElement('input');
+    priceInput.type = 'number';
+    priceInput.step = '0.01';
+    priceInput.className = 'form-control mb-2';
+    priceInput.name = 'item_prices[]';
+    priceInput.placeholder = 'Price';
+
+    const label = document.createElement('div');
+    label.className = 'form-label';
+    label.textContent = 'Assign to:';
+
+    const container = document.createElement('div');
+    container.className = 'assignments-container';
+
+    people.forEach((person, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-outline-primary btn-sm person-tag';
+        btn.textContent = person;
+        btn.onclick = () => {
+            btn.classList.toggle('btn-primary');
+            btn.classList.toggle('btn-outline-primary');
+            updateAssignmentInput();
+        };
+        container.appendChild(btn);
+    });
+
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = 'assignments[]';
+
+    function updateAssignmentInput() {
+        const selected = Array.from(container.children)
+            .map((btn, i) => btn.classList.contains('btn-primary') ? i : null)
+            .filter(i => i !== null);
+        hiddenInput.value = selected.length === people.length ? 'all' : selected.join(',');
+    }
+
+    itemDiv.append(nameInput, priceInput, label, container, hiddenInput);
+    document.getElementById('items-list').appendChild(itemDiv);
+}
+
+function updateAllAssignments() {
+    const currentItems = document.querySelectorAll('.item-block');
+    currentItems.forEach(item => item.remove());
+    addItem();
+}
+</script>
+
+<footer class="bg-dark text-white text-center py-3 mt-5">
+    <p>&copy; 2025 Split-It. All rights reserved.</p>
+</footer>
+<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 </body>
 </html>
