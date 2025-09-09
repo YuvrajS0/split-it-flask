@@ -4,10 +4,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, joinedload
 from models import Base, Receipt, Item, Person
-from azure.core.credentials import AzureKeyCredential
 import os
-from azure.ai.formrecognizer import DocumentAnalysisClient
-from azure.core.credentials import AzureKeyCredential
 # Load environment variables
 load_dotenv()
 
