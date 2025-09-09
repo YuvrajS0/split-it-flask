@@ -18,9 +18,6 @@
             gap: 8px;
             margin-top: 5px;
         }
-        .assignments-container .form-check {
-            margin-right: 10px;
-        }
     </style>
 </head>
 <body>
@@ -33,31 +30,33 @@
             <label for="receiptName" class="form-label">Receipt Name</label>
             <input type="text" class="form-control" id="receiptName" name="receipt_name" required>
         </div>
+        <div class="mb-3">
+            <label for="taxTip" class="form-label">Tax + Tip Total</label>
+            <input type="number" step="0.01" class="form-control" id="taxTip" name="tax_tip" required>
+        </div>
 
+        <h4 class="mt-4">People Involved</h4>
+        <div id="users-list" class="mb-3">
+            <select class="form-select mb-2" name="users[]" required>
+                <option value="" disabled selected>Select person</option>
+            </select>
+        </div>
+        <button type="button" class="btn btn-secondary mb-3" onclick="addUser()">Add Person</button>
+
+        <h4 class="mt-4">Items</h4>
         <div id="items-list">
             <div class="item-block">
                 <input type="text" class="form-control mb-2" name="item_names[]" placeholder="Item name" required>
                 <input type="number" step="0.01" class="form-control mb-2" name="item_prices[]" placeholder="Price" required>
                 <label class="form-label">Assign to:</label>
                 <div class="assignments-container">
-                    <!-- JavaScript will fill user checkboxes -->
+                    <select class="form-select" name="assignments[]" multiple required>
+                        <!-- JS will fill options with people -->
+                    </select>
                 </div>
-                <input type="hidden" name="assignments[]" value="">
             </div>
         </div>
-
         <button type="button" class="btn btn-secondary mb-3" onclick="addItem()">Add Item</button>
-
-        <h4 class="mt-4">Add People</h4>
-        <div id="users-list">
-            <input type="text" class="form-control mb-2" name="users[]" placeholder="Person name" required>
-        </div>
-        <button type="button" class="btn btn-secondary mb-3" onclick="addUser()">Add Person</button>
-
-        <div class="mb-3">
-            <label for="taxTip" class="form-label">Tax + Tip</label>
-            <input type="number" step="0.01" class="form-control" id="taxTip" name="tax_tip" required>
-        </div>
 
         <div class="text-end">
             <button type="submit" class="btn btn-success">Split</button>
@@ -66,63 +65,48 @@
 </div>
 
 <script>
-    function addItem(name = '', price = '') {
-        const users = Array.from(document.querySelectorAll('input[name="users[]"]')).map(input => input.value);
+    function addUser() {
+        const usersList = document.getElementById('users-list');
+        const select = document.createElement('select');
+        select.className = 'form-select mb-2';
+        select.name = 'users[]';
+        select.required = true;
+        select.innerHTML = `<option value="" disabled selected>Select person</option>`;
+        usersList.appendChild(select);
+        updateAssignmentOptions();
+    }
+
+    function addItem() {
+        const users = Array.from(document.querySelectorAll('select[name="users[]"]'))
+            .map(sel => sel.value).filter(v => v);
         const itemBlock = document.createElement('div');
         itemBlock.className = 'item-block';
         itemBlock.innerHTML = `
-            <input type="text" class="form-control mb-2" name="item_names[]" placeholder="Item name" value="${name}" required>
-            <input type="number" step="0.01" class="form-control mb-2" name="item_prices[]" placeholder="Price" value="${price}" required>
+            <input type="text" class="form-control mb-2" name="item_names[]" placeholder="Item name" required>
+            <input type="number" step="0.01" class="form-control mb-2" name="item_prices[]" placeholder="Price" required>
             <label class="form-label">Assign to:</label>
             <div class="assignments-container">
-                ${users.map(user => `
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="${user}" onchange="updateAssignments(this)">
-                        <label class="form-check-label">${user}</label>
-                    </div>
-                `).join('')}
+                <select class="form-select" name="assignments[]" multiple required>
+                    ${users.map(user => `<option value="${user}">${user}</option>`).join('')}
+                </select>
             </div>
-            <input type="hidden" name="assignments[]" value="">
         `;
         document.getElementById('items-list').appendChild(itemBlock);
     }
 
-    function addUser() {
-        const usersList = document.getElementById('users-list');
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.name = 'users[]';
-        input.placeholder = 'Person name';
-        input.className = 'form-control mb-2';
-        input.required = true;
-        input.addEventListener('input', updateAllAssignments);
-        usersList.appendChild(input);
-        updateAllAssignments();
-    }
-
-    function updateAllAssignments() {
-        const userNames = Array.from(document.querySelectorAll('input[name="users[]"]')).map(input => input.value);
-        const itemBlocks = document.querySelectorAll('#items-list .item-block');
-        itemBlocks.forEach(block => {
-            const container = block.querySelector('.assignments-container');
-            container.innerHTML = userNames.map(user => `
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="${user}" onchange="updateAssignments(this)">
-                    <label class="form-check-label">${user}</label>
-                </div>
-            `).join('');
+    function updateAssignmentOptions() {
+        const users = Array.from(document.querySelectorAll('select[name="users[]"]'))
+            .map(sel => sel.value).filter(v => v);
+        document.querySelectorAll('select[name="assignments[]"]').forEach(select => {
+            select.innerHTML = users.map(user => `<option value="${user}">${user}</option>`).join('');
         });
     }
 
-    function updateAssignments(checkbox) {
-        const itemBlock = checkbox.closest('.item-block');
-        const hiddenInput = itemBlock.querySelector('input[name="assignments[]"]');
-        const checkedValues = Array.from(itemBlock.querySelectorAll('.form-check-input:checked')).map(cb => cb.value);
-        hiddenInput.value = checkedValues.join(',');
-    }
+    // Update assignment options when a person is selected
+    document.getElementById('users-list').addEventListener('change', updateAssignmentOptions);
 
     window.addEventListener('load', () => {
-        updateAllAssignments();
+        updateAssignmentOptions();
     });
 </script>
 </body>
