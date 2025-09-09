@@ -4,8 +4,10 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, joinedload
 from models import Base, Receipt, Item, Person
+from azure.core.credentials import AzureKeyCredential
 import os
-
+from azure.ai.formrecognizer import DocumentAnalysisClient
+from azure.core.credentials import AzureKeyCredential
 # Load environment variables
 load_dotenv()
 
@@ -17,7 +19,6 @@ HOST = os.getenv("host")
 PORT = os.getenv("port")
 DBNAME = os.getenv("dbname")
 DATABASE_URL = f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}?sslmode=require"
-print(f"Connecting to database at {DATABASE_URL}")
 engine = create_engine(DATABASE_URL)
 Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
@@ -125,12 +126,12 @@ def breakdown():
             'assignment': assignment
         })
 
-    person_totals = {name: 0.0 for name in people}
+    person_subtotals = {name: 0.0 for name in people}
     for item in items:
         if item['assignment'] == 'all':
             share = item['price'] / len(people)
             for name in people:
-                person_totals[name] += share
+                person_subtotals[name] += share
         else:
             try:
                 indices = list(map(int, item['assignment'].split(',')))
@@ -138,13 +139,16 @@ def breakdown():
                 if assigned:
                     share = item['price'] / len(assigned)
                     for name in assigned:
-                        person_totals[name] += share
+                        person_subtotals[name] += share
             except:
                 continue
 
     total = sum(item['price'] for item in items)
+    person_totals = {}
     for name in people:
-        person_totals[name] += (person_totals[name] / total) * tax_tip
+        # Add proportional tax/tip
+        tax_tip_share = (person_subtotals[name] / total) * tax_tip if total else 0
+        person_totals[name] = round(person_subtotals[name] + tax_tip_share, 2)
 
     return render_template('breakdown.html', receipt_name=receipt_name, tax_tip=tax_tip,
                            people=people, items=items, breakdown=person_totals)
@@ -209,6 +213,45 @@ def delete_receipt(receipt_id):
     flash('Receipt deleted successfully.', 'success')
 
     return redirect(url_for('profile'))
+
+@app.route("/extract_receipt", methods=["POST"])
+def extract_receipt():
+    file = request.files["receipt_file"]
+
+    if not file:
+        flash("No file uploaded.")
+        return redirect(url_for("home"))
+
+    try:
+        client = DocumentAnalysisClient(
+            endpoint=os.environ["AZURE_ENDPOINT"],
+            credential=AzureKeyCredential(os.environ["AZURE_KEY"])
+        )
+
+        poller = client.begin_analyze_document(
+            model_id="prebuilt-receipt",
+            document=file.read()
+        )
+        result = poller.result()
+        for document in result.documents:
+            print("Document:")
+            for field_name, field in document.fields.items():
+                print(f"  {field_name}: {field.value} (confidence: {field.confidence})")
+        items = []
+        for receipt in result.documents:
+            for item in receipt.fields.get("Items", {}).value:
+                name = item.value.get("Name", {}).value
+                price = item.value.get("TotalPrice", {}).value
+                if name and price:
+                    items.append({"name": name, "price": round(float(price), 2)})
+
+        return render_template("home.html", extracted_data=items)
+
+    except Exception as e:
+        print("Error during Azure Document Analysis:", e)
+        flash("Failed to extract data from receipt.")
+        return redirect(url_for("home"))
+
 
 if __name__ == '__main__':
     app.run()
